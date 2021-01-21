@@ -9,6 +9,8 @@ func TestClientInitialistion(t *testing.T) {
 		if err == nil {
 			t.Fatal("Wanted an error but did not get one")
 		}
+
+		
 	})
 
 }
