@@ -1,25 +1,37 @@
 package client
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"net/url"
+)
 
 type Client struct {
-	Host string
+	BaseURL string
+
+	httpClient *http.Client
 }
 
 var (
-	// ErrHostEmpty Cannot create a new client with an empty host
-	ErrHostEmpty = errors.New("host cannot be empty")
+	// ErrBaseURLEmpty Cannot create a new client with an empty base url
+	ErrBaseURLEmpty = errors.New("BaseURL cannot be empty")
+	// ErrBaseURLInvalid Cannot create a client with an invalid url
+	ErrBaseURLInvalid = errors.New("BaseURL is invalid")
 )
 
 // NewClient returns a configured instance of a client
-func NewClient(host string) (*Client, error) {
+func NewClient(baseURL string) (*Client, error) {
 
-	if host == "" {
-		return nil, ErrHostEmpty
+	if baseURL == "" {
+		return nil, ErrBaseURLEmpty
+	}
+
+	if _, err := url.ParseRequestURI(baseURL); err != nil {
+		return nil, fmt.Errorf("baseURL %s: %w", baseURL, ErrBaseURLInvalid)
 	}
 
 	return &Client{
-		Host: host,
+		BaseURL: baseURL,
 	}, nil
-
 }
