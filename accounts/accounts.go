@@ -3,6 +3,7 @@ package accounts
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -43,6 +44,10 @@ func (c *Client) Fetch(id string) (*Entity, error) {
 
 	defer res.Body.Close()
 
+	if res.StatusCode != http.StatusOK {
+		return nil, buildErrorResponse(res)
+	}
+
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response body: %w", err)
@@ -76,6 +81,10 @@ func (c *Client) Create(a *RequestData) (*Entity, error) {
 		return nil, fmt.Errorf("error executing request: %w", err)
 	}
 
+	if res.StatusCode != http.StatusCreated {
+		return nil, buildErrorResponse(res)
+	}
+
 	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
@@ -84,7 +93,6 @@ func (c *Client) Create(a *RequestData) (*Entity, error) {
 	}
 
 	respObj := &Entity{}
-
 	err = json.Unmarshal(body, respObj)
 	if err != nil {
 		return nil, fmt.Errorf("error unmashalling response: %w", err)
@@ -145,6 +153,8 @@ func (c *Client) Delete(id string, version int64) error {
 		return fmt.Errorf("error executing request: %w", err)
 	}
 
+	fmt.Println(res.StatusCode)
+
 	if res.StatusCode != http.StatusNoContent {
 		return err
 	}
@@ -157,8 +167,11 @@ func (c *Client) ExecuteWithMiddleware(req *http.Request) (*http.Response, error
 	return c.Do(req)
 }
 
-// todo error handling from API
-// todo integration testing of client possibly with dockertest if I can get full api running.
+func buildErrorResponse(res *http.Response) error {
+	return errors.New(res.Status)
+}
+
+// todo better error handling e.g include error message.
 // todo document process.
 // todo add example.
-// todo find better way to do base func.
+// todo test list

@@ -42,7 +42,7 @@ services:
     working_dir: /go/src/app
     volumes:
       - .:/go/src/app
-    command: ["go", "test", "./..."]
+    command: ["go", "test", "./...", "-v"]
     depends_on:
       - accountapi
       - postgresql
