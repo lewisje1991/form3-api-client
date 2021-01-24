@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 
@@ -13,11 +14,13 @@ import (
 type Client struct {
 	client.Client
 
-	path string "/organisation/accounts"
+	path string
 }
 
 func NewClient(baseURL string) (*Client, error) {
-	a := &Client{}
+	a := &Client{
+		path: "/organisation/accounts",
+	}
 	err := a.SetBaseUrl(baseURL)
 	if err != nil {
 		return nil, err
@@ -33,14 +36,26 @@ func (c *Client) Fetch(id string) (*Entity, error) {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
-	// fmt.Printf("%+v", req)
-
-	res, err := c.ExecuteWithMiddleware(req, &Entity{})
+	res, err := c.ExecuteWithMiddleware(req)
 	if err != nil {
 		return nil, fmt.Errorf("error executing request: %w", err)
 	}
 
-	return res.(*Entity), err
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response body: %w", err)
+	}
+
+	respObj := &Entity{}
+
+	err = json.Unmarshal(body, respObj)
+	if err != nil {
+		return nil, fmt.Errorf("error unmashalling response: %w", err)
+	}
+
+	return respObj, nil
 }
 
 func (c *Client) Create(a *RequestData) (*Entity, error) {
@@ -56,14 +71,26 @@ func (c *Client) Create(a *RequestData) (*Entity, error) {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
-	fmt.Printf("%+v", req)
-
-	res, err := c.ExecuteWithMiddleware(req, &Entity{})
+	res, err := c.ExecuteWithMiddleware(req)
 	if err != nil {
 		return nil, fmt.Errorf("error executing request: %w", err)
 	}
 
-	return res.(*Entity), nil
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response body: %w", err)
+	}
+
+	respObj := &Entity{}
+
+	err = json.Unmarshal(body, respObj)
+	if err != nil {
+		return nil, fmt.Errorf("error unmashalling response: %w", err)
+	}
+
+	return respObj, nil
 }
 
 func (c *Client) List(pageSize, pageNumber int64) (*EntityList, error) {
@@ -79,30 +106,55 @@ func (c *Client) List(pageSize, pageNumber int64) (*EntityList, error) {
 	q.Add("page[size]", strconv.FormatInt(pageSize, 10))
 	req.URL.RawQuery = q.Encode()
 
-	res, err := c.ExecuteWithMiddleware(req, &EntityList{})
+	res, err := c.ExecuteWithMiddleware(req)
 	if err != nil {
 		return nil, fmt.Errorf("error executing request: %w", err)
 	}
-	return res.(*EntityList), nil
+
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response body: %w", err)
+	}
+
+	respObj := &EntityList{}
+
+	err = json.Unmarshal(body, respObj)
+	if err != nil {
+		return nil, fmt.Errorf("error unmashalling response: %w", err)
+	}
+
+	return respObj, nil
 }
 
-func (c *Client) Delete(id string, version int64) (*EntityList, error) {
+func (c *Client) Delete(id string, version int64) error {
 	resourceURL := c.BuildURL(fmt.Sprintf("%s/%s", c.path, id))
 
 	req, err := http.NewRequest(http.MethodDelete, resourceURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
+		return fmt.Errorf("error creating request: %w", err)
 	}
 
 	q := req.URL.Query()
 	q.Add("version", strconv.FormatInt(version, 10))
 	req.URL.RawQuery = q.Encode()
 
-	res, err := c.ExecuteWithMiddleware(req, &EntityList{})
+	res, err := c.ExecuteWithMiddleware(req)
 	if err != nil {
-		return nil, fmt.Errorf("error executing request: %w", err)
+		return fmt.Errorf("error executing request: %w", err)
 	}
-	return res.(*EntityList), nil
+
+	if res.StatusCode != http.StatusNoContent {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) ExecuteWithMiddleware(req *http.Request) (*http.Response, error) {
+	req.Header.Add("content-type", "application/vnd.api+json")
+	return c.Do(req)
 }
 
 // todo error handling from API

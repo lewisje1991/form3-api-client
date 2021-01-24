@@ -5,8 +5,10 @@ import (
 	"testing"
 )
 
+const ENDPOINT = "http://accountapi:8080/v1"
+
 func TestFetchAccount(t *testing.T) {
-	client, err := NewClient("http://localhost:8080/v1")
+	client, err := NewClient(ENDPOINT)
 	if err != nil {
 		t.Fatal("Didn't want error but got one", err)
 	}
@@ -20,7 +22,7 @@ func TestFetchAccount(t *testing.T) {
 }
 
 func TestCreateAccount(t *testing.T) {
-	client, err := NewClient("http://localhost:8080/v1")
+	client, err := NewClient(ENDPOINT)
 	if err != nil {
 		t.Fatal("Didn't want error but got one", err)
 	}
@@ -52,7 +54,7 @@ func TestCreateAccount(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
-	client, err := NewClient("http://localhost:8080/v1")
+	client, err := NewClient(ENDPOINT)
 	if err != nil {
 		t.Fatal("Didn't want error but got one", err)
 	}
@@ -61,7 +63,7 @@ func TestList(t *testing.T) {
 
 	if err != nil {
 		t.Fatal("Didn't want error but got one", err)
-	}
+	}	
 
 	fmt.Printf("%+v\n", acc)
 }

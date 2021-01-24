@@ -1,10 +1,8 @@
 package client
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 )
@@ -37,30 +35,4 @@ func (c *Client) SetBaseUrl(baseURL string) error {
 
 func (c *Client) BuildURL(path string) string {
 	return fmt.Sprintf("%s%s", c.baseURL, path)
-}
-
-func (c *Client) ExecuteWithMiddleware(req *http.Request, respObj interface{}) (interface{}, error) {
-	req.Header.Add("content-type", "application/vnd.api+json")
-	return c.execute(req, respObj)
-}
-
-func (c *Client) execute(req *http.Request, respObj interface{}) (interface{}, error) {
-	res, err := c.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	defer res.Body.Close()
-
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(body, respObj)
-	if err != nil {
-		return nil, fmt.Errorf("error unmashalling response: %w", err)
-	}
-
-	return respObj, nil
 }
