@@ -1,7 +1,7 @@
 ## About
 
-Name: Lewis Jessett
-Go Experience: 1 year of commercial experience
+- Name: Lewis Jessett
+- Go Experience: 1 year of commercial experience
 
 ## Setting up project
 
