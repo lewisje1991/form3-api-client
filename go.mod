@@ -1,4 +1,4 @@
-module github.com/lewisje1991/f3-accounts-api-client
+module github.com/lewisje1991/form3-api-client
 
 go 1.15
 

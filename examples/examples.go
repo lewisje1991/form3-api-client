@@ -4,21 +4,21 @@ import (
 	"log"
 
 	"github.com/google/uuid"
-	"github.com/lewisje1991/f3-accounts-api-client/accounts"
+	client "github.com/lewisje1991/form3-api-client"
 )
 
 func main() {
-	client, err := accounts.NewClient("http://localhost:8080/v1")
+	c, err := client.NewClient("http://localhost:8080/v1")
 	if err != nil {
 		log.Fatal("error creating client", err)
 	}
 
-	account, err := client.Create(&accounts.RequestData{
-		Data: accounts.Data{
+	account, err := c.Accounts.Create(&client.AccountCreateRequest{
+		Data: client.Data{
 			ID:             uuid.NewString(),
 			OrganisationID: uuid.NewString(),
 			Type:           "accounts",
-			Attributes: accounts.Attributes{
+			Attributes: client.AccountAttributes{
 				Country:               "GB",
 				AccountClassification: "Personal",
 			},
