@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -50,37 +51,13 @@ func (c *Client) Fetch(id string) (*Entity, error) {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
-	res, err := c.ExecuteWithMiddleware(req)
+	var account = &Entity{}
+	err = c.do(req, account)
 	if err != nil {
 		return nil, fmt.Errorf("error executing request: %w", err)
 	}
 
-	defer res.Body.Close()
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading response body: %w", err)
-	}
-
-	if res.StatusCode != http.StatusOK {
-		respObj := &BodyError{}
-		err = json.Unmarshal(body, respObj)
-		if err != nil {
-			return nil, fmt.Errorf("error unmashalling response: %w", err)
-		}
-		return nil, &APIError{
-			StatusCode: res.StatusCode,
-			Message:    respObj.ErrorMessage,
-		}
-	}
-
-	respObj := &Entity{}
-
-	err = json.Unmarshal(body, respObj)
-	if err != nil {
-		return nil, fmt.Errorf("error unmashalling response: %w", err)
-	}
-
-	return respObj, nil
+	return account, nil
 }
 
 func (c *Client) Create(a *RequestData) (*Entity, error) {
@@ -96,34 +73,11 @@ func (c *Client) Create(a *RequestData) (*Entity, error) {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
-	res, err := c.ExecuteWithMiddleware(req)
+	respObj := &Entity{}
+
+	err = c.do(req, respObj)
 	if err != nil {
 		return nil, fmt.Errorf("error executing request: %w", err)
-	}
-
-	defer res.Body.Close()
-
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading response body: %w", err)
-	}
-
-	if res.StatusCode >= 400 {
-		respObj := &BodyError{}
-		err = json.Unmarshal(body, respObj)
-		if err != nil {
-			return nil, fmt.Errorf("error unmashalling response: %w", err)
-		}
-		return nil, &APIError{
-			StatusCode: res.StatusCode,
-			Message:    respObj.ErrorMessage,
-		}
-	}
-
-	respObj := &Entity{}
-	err = json.Unmarshal(body, respObj)
-	if err != nil {
-		return nil, fmt.Errorf("error unmashalling response: %w", err)
 	}
 
 	return respObj, nil
@@ -142,25 +96,12 @@ func (c *Client) List(pageSize, pageNumber int64) (*EntityList, error) {
 	q.Add("page[size]", strconv.FormatInt(pageSize, 10))
 	req.URL.RawQuery = q.Encode()
 
-	res, err := c.ExecuteWithMiddleware(req)
+	respObj := &EntityList{}
+
+	err = c.do(req, respObj)
 	if err != nil {
 		return nil, fmt.Errorf("error executing request: %w", err)
 	}
-
-	defer res.Body.Close()
-
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading response body: %w", err)
-	}
-
-	respObj := &EntityList{}
-
-	err = json.Unmarshal(body, respObj)
-	if err != nil {
-		return nil, fmt.Errorf("error unmashalling response: %w", err)
-	}
-
 	return respObj, nil
 }
 
@@ -176,21 +117,56 @@ func (c *Client) Delete(id string, version int64) error {
 	q.Add("version", strconv.FormatInt(version, 10))
 	req.URL.RawQuery = q.Encode()
 
-	res, err := c.ExecuteWithMiddleware(req)
+	err = c.do(req, nil)
 	if err != nil {
 		return fmt.Errorf("error executing request: %w", err)
-	}
-
-	if res.StatusCode != http.StatusNoContent {
-		return err
 	}
 
 	return nil
 }
 
-func (c *Client) ExecuteWithMiddleware(req *http.Request) (*http.Response, error) {
+func (c *Client) do(req *http.Request, respObj interface{}) error {
+
 	req.Header.Add("content-type", "application/vnd.api+json")
-	return c.Do(req)
+
+	res, err := c.Do(req)
+	if err != nil {
+		return fmt.Errorf("error executing request: %w", err)
+	}
+
+	defer res.Body.Close()
+
+	if err := checkResponseForError(res); err != nil {
+		return err
+	}
+
+	decErr := json.NewDecoder(res.Body).Decode(respObj)
+
+	if decErr == io.EOF {
+		decErr = nil
+	}
+	if decErr != nil {
+		err = decErr
+	}
+	return nil
+}
+
+func checkResponseForError(res *http.Response) error {
+	if c := res.StatusCode; http.StatusOK <= c && c < http.StatusMultipleChoices {
+		return nil
+	}
+
+	message := &BodyError{}
+
+	data, err := ioutil.ReadAll(res.Body)
+	if err == nil && data != nil {
+		json.Unmarshal(data, message)
+	}
+
+	return &APIError{
+		StatusCode: res.StatusCode,
+		Message:    message.ErrorMessage,
+	}
 }
 
 func (c *Client) buildURL(path string) string {

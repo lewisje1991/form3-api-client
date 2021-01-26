@@ -8,5 +8,5 @@ type APIError struct {
 }
 
 func (e *APIError) Error() string {
-	return fmt.Sprintf("status %d: err %v", e.StatusCode, e.Message)
+	return fmt.Sprintf("status code %d: error %v", e.StatusCode, e.Message)
 }

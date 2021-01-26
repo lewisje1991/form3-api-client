@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const ENDPOINT = "http://localhost:8080/v1"
+const ENDPOINT = "http://accountapi:8080/v1"
 
 func TestNewClient(t *testing.T) {
 
