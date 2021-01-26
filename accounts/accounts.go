@@ -22,8 +22,8 @@ var (
 type Client struct {
 	http.Client
 
-	path    string
-	baseURL string
+	resourceURL string
+	baseURL     string
 }
 
 func NewClient(baseURL string) (*Client, error) {
@@ -36,19 +36,17 @@ func NewClient(baseURL string) (*Client, error) {
 	}
 
 	c := &Client{
-		path:    "/organisation/accounts",
-		baseURL: baseURL,
+		resourceURL: "/organisation/accounts",
+		baseURL:     baseURL,
 	}
 
 	return c, nil
 }
 
 func (c *Client) Fetch(id string) (*Entity, error) {
-	resourceURL := c.buildURL(fmt.Sprintf("%s/%s", c.path, id))
-
-	req, err := http.NewRequest(http.MethodGet, resourceURL, nil)
+	req, err := c.buildRequest(http.MethodGet, fmt.Sprintf("%s/%s", c.resourceURL, id), nil)
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
+		return nil, err
 	}
 
 	var account = &Entity{}
@@ -60,17 +58,10 @@ func (c *Client) Fetch(id string) (*Entity, error) {
 	return account, nil
 }
 
-func (c *Client) Create(a *RequestData) (*Entity, error) {
-	resourceURL := c.buildURL(c.path)
-
-	postBody, err := json.Marshal(a)
+func (c *Client) Create(requestData *RequestData) (*Entity, error) {
+	req, err := c.buildRequest(http.MethodPost, c.resourceURL, requestData)
 	if err != nil {
-		return nil, fmt.Errorf("error mashalling body: %w", err)
-	}
-
-	req, err := http.NewRequest(http.MethodPost, resourceURL, bytes.NewBuffer(postBody))
-	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
+		return nil, err
 	}
 
 	respObj := &Entity{}
@@ -84,11 +75,9 @@ func (c *Client) Create(a *RequestData) (*Entity, error) {
 }
 
 func (c *Client) List(pageSize, pageNumber int64) (*EntityList, error) {
-	resourceURL := c.buildURL(c.path)
-
-	req, err := http.NewRequest(http.MethodGet, resourceURL, nil)
+	req, err := c.buildRequest(http.MethodGet, c.resourceURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %w", err)
+		return nil, err
 	}
 
 	q := req.URL.Query()
@@ -100,17 +89,16 @@ func (c *Client) List(pageSize, pageNumber int64) (*EntityList, error) {
 
 	err = c.do(req, respObj)
 	if err != nil {
-		return nil, fmt.Errorf("error executing request: %w", err)
+		return nil, err
 	}
+
 	return respObj, nil
 }
 
 func (c *Client) Delete(id string, version int64) error {
-	resourceURL := c.buildURL(fmt.Sprintf("%s/%s", c.path, id))
-
-	req, err := http.NewRequest(http.MethodDelete, resourceURL, nil)
+	req, err := c.buildRequest(http.MethodDelete, fmt.Sprintf("%s/%s", c.resourceURL, id), nil)
 	if err != nil {
-		return fmt.Errorf("error creating request: %w", err)
+		return err
 	}
 
 	q := req.URL.Query()
@@ -119,16 +107,13 @@ func (c *Client) Delete(id string, version int64) error {
 
 	err = c.do(req, nil)
 	if err != nil {
-		return fmt.Errorf("error executing request: %w", err)
+		return err
 	}
 
 	return nil
 }
 
 func (c *Client) do(req *http.Request, respObj interface{}) error {
-
-	req.Header.Add("content-type", "application/vnd.api+json")
-
 	res, err := c.Do(req)
 	if err != nil {
 		return fmt.Errorf("error executing request: %w", err)
@@ -140,14 +125,13 @@ func (c *Client) do(req *http.Request, respObj interface{}) error {
 		return err
 	}
 
-	decErr := json.NewDecoder(res.Body).Decode(respObj)
+	err = json.NewDecoder(res.Body).Decode(respObj)
+	if err != nil {
+		if !errors.Is(err, io.EOF) {
+			return err
+		}
+	}
 
-	if decErr == io.EOF {
-		decErr = nil
-	}
-	if decErr != nil {
-		err = decErr
-	}
 	return nil
 }
 
@@ -160,7 +144,10 @@ func checkResponseForError(res *http.Response) error {
 
 	data, err := ioutil.ReadAll(res.Body)
 	if err == nil && data != nil {
-		json.Unmarshal(data, message)
+		err = json.Unmarshal(data, message)
+		if err != nil {
+			return fmt.Errorf("error mashalling body: %w", err)
+		}
 	}
 
 	return &APIError{
@@ -169,10 +156,32 @@ func checkResponseForError(res *http.Response) error {
 	}
 }
 
+func (c *Client) buildRequest(method string, resourceURL string, bodyData interface{}) (*http.Request, error) {
+	var buf io.ReadWriter
+	if bodyData != nil {
+		bodyData, err := json.Marshal(bodyData)
+		if err != nil {
+			return nil, fmt.Errorf("error mashalling body: %w", err)
+		}
+
+		buf = bytes.NewBuffer(bodyData)
+	}
+
+	url := c.buildURL(resourceURL)
+
+	req, err := http.NewRequest(method, url, buf)
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %w", err)
+	}
+
+	req.Header.Add("content-type", "application/vnd.api+json")
+
+	return req, nil
+}
+
 func (c *Client) buildURL(path string) string {
 	return fmt.Sprintf("%s%s", c.baseURL, path)
 }
 
-// todo better error handling e.g include error message.
 // todo document process.
 // docker tests run initial setup...
