@@ -92,7 +92,7 @@ func TestCreate(t *testing.T) {
 		requestData.Data.OrganisationID = ""
 
 		_, got := client.Create(requestData)
-		assertIsValidationError(t, got)
+		assertErrorContains(t, "organisation_id in body is required", got)
 	})
 }
 
@@ -115,13 +115,7 @@ func TestFetch(t *testing.T) {
 	t.Run("When account does not exist, returns error", func(t *testing.T) {
 		ID := uuid.New().String()
 		_, got := client.Fetch(ID)
-		assertError(t, got)
-
-		want := "404 Not Found"
-
-		if got.Error() != want {
-			t.Fatalf("wanted %s, but got %s", want, got)
-		}
+		assertErrorContains(t, "status code 404", got)
 	})
 }
 
@@ -130,15 +124,14 @@ func TestDelete(t *testing.T) {
 	assertNoError(t, err)
 
 	t.Run("Delete returns error when resource not found", func(t *testing.T) {
-		t.Skip()
-		got := client.Delete("invalid resource", 0)
-		assertError(t, got)
+		got := client.Delete("invalid resource uuid invalid", 0)
+		assertErrorContains(t, "status code 400", got)
 	})
 
 	t.Run("Delete returns error when version invalid", func(t *testing.T) {
 		account := createAccount(t, client)
 		got := client.Delete(account.Data.ID, 2)
-		assertNoError(t, got)
+		assertErrorContains(t, "status code 404", got)
 		cleanUpAccounts(t, []string{account.Data.ID}, client)
 	})
 
@@ -147,8 +140,6 @@ func TestDelete(t *testing.T) {
 		got := client.Delete(account.Data.ID, 0)
 		assertNoError(t, got)
 	})
-
-	//todo additional errors bad request with invalid guid.
 }
 
 func TestList(t *testing.T) {
@@ -237,14 +228,14 @@ func assertError(t *testing.T, err error) {
 	}
 }
 
-func assertIsValidationError(t *testing.T, err error) {
+func assertErrorContains(t *testing.T, value string, err error) {
 	if err == nil {
 		t.Helper()
 		t.Fatal("wanted error but did not get one", err)
 	}
 
-	if !strings.Contains(err.Error(), "validation failure list") {
+	if !strings.Contains(err.Error(), value) {
 		t.Helper()
-		t.Fatal("wanted validation error but did not get one", err)
+		t.Fatalf("could not find occurance of %q in %q", value, err.Error())
 	}
 }
