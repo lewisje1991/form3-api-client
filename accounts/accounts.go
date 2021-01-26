@@ -7,30 +7,43 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
+)
 
-	"github.com/lewisje1991/f3-accounts-api-client/client"
+var (
+	// ErrBaseURLEmpty Cannot create a new client with an empty base url
+	ErrBaseURLEmpty = errors.New("BaseURL cannot be empty")
+	// ErrBaseURLInvalid Cannot create a client with an invalid url
+	ErrBaseURLInvalid = errors.New("BaseURL is invalid")
 )
 
 type Client struct {
-	client.Client
+	http.Client
 
-	path string
+	path    string
+	baseURL string
 }
 
 func NewClient(baseURL string) (*Client, error) {
-	a := &Client{
-		path: "/organisation/accounts",
+	if baseURL == "" {
+		return nil, ErrBaseURLEmpty
 	}
-	err := a.SetBaseUrl(baseURL)
-	if err != nil {
-		return nil, err
+
+	if _, err := url.ParseRequestURI(baseURL); err != nil {
+		return nil, fmt.Errorf("baseURL %s: %w", baseURL, ErrBaseURLInvalid)
 	}
-	return a, nil
+
+	c := &Client{
+		path:    "/organisation/accounts",
+		baseURL: baseURL,
+	}
+
+	return c, nil
 }
 
 func (c *Client) Fetch(id string) (*Entity, error) {
-	resourceURL := c.BuildURL(fmt.Sprintf("%s/%s", c.path, id))
+	resourceURL := c.buildURL(fmt.Sprintf("%s/%s", c.path, id))
 
 	req, err := http.NewRequest(http.MethodGet, resourceURL, nil)
 	if err != nil {
@@ -43,14 +56,21 @@ func (c *Client) Fetch(id string) (*Entity, error) {
 	}
 
 	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return nil, buildErrorResponse(res)
-	}
-
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response body: %w", err)
+	}
+
+	if res.StatusCode != http.StatusOK {
+		respObj := &BodyError{}
+		err = json.Unmarshal(body, respObj)
+		if err != nil {
+			return nil, fmt.Errorf("error unmashalling response: %w", err)
+		}
+		return nil, &APIError{
+			StatusCode: res.StatusCode,
+			Message:    respObj.ErrorMessage,
+		}
 	}
 
 	respObj := &Entity{}
@@ -64,7 +84,7 @@ func (c *Client) Fetch(id string) (*Entity, error) {
 }
 
 func (c *Client) Create(a *RequestData) (*Entity, error) {
-	resourceURL := c.BuildURL(c.path)
+	resourceURL := c.buildURL(c.path)
 
 	postBody, err := json.Marshal(a)
 	if err != nil {
@@ -81,15 +101,23 @@ func (c *Client) Create(a *RequestData) (*Entity, error) {
 		return nil, fmt.Errorf("error executing request: %w", err)
 	}
 
-	if res.StatusCode != http.StatusCreated {
-		return nil, buildErrorResponse(res)
-	}
-
 	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response body: %w", err)
+	}
+
+	if res.StatusCode >= 400 {
+		respObj := &BodyError{}
+		err = json.Unmarshal(body, respObj)
+		if err != nil {
+			return nil, fmt.Errorf("error unmashalling response: %w", err)
+		}
+		return nil, &APIError{
+			StatusCode: res.StatusCode,
+			Message:    respObj.ErrorMessage,
+		}
 	}
 
 	respObj := &Entity{}
@@ -102,7 +130,7 @@ func (c *Client) Create(a *RequestData) (*Entity, error) {
 }
 
 func (c *Client) List(pageSize, pageNumber int64) (*EntityList, error) {
-	resourceURL := c.BuildURL(c.path)
+	resourceURL := c.buildURL(c.path)
 
 	req, err := http.NewRequest(http.MethodGet, resourceURL, nil)
 	if err != nil {
@@ -137,7 +165,7 @@ func (c *Client) List(pageSize, pageNumber int64) (*EntityList, error) {
 }
 
 func (c *Client) Delete(id string, version int64) error {
-	resourceURL := c.BuildURL(fmt.Sprintf("%s/%s", c.path, id))
+	resourceURL := c.buildURL(fmt.Sprintf("%s/%s", c.path, id))
 
 	req, err := http.NewRequest(http.MethodDelete, resourceURL, nil)
 	if err != nil {
@@ -153,8 +181,6 @@ func (c *Client) Delete(id string, version int64) error {
 		return fmt.Errorf("error executing request: %w", err)
 	}
 
-	fmt.Println(res.StatusCode)
-
 	if res.StatusCode != http.StatusNoContent {
 		return err
 	}
@@ -167,11 +193,10 @@ func (c *Client) ExecuteWithMiddleware(req *http.Request) (*http.Response, error
 	return c.Do(req)
 }
 
-func buildErrorResponse(res *http.Response) error {
-	return errors.New(res.Status)
+func (c *Client) buildURL(path string) string {
+	return fmt.Sprintf("%s%s", c.baseURL, path)
 }
 
 // todo better error handling e.g include error message.
 // todo document process.
-// todo add example.
-// todo test list
+// docker tests run initial setup...

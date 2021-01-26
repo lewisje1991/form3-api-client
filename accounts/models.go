@@ -34,22 +34,14 @@ type EntityList struct {
 }
 
 type RequestData struct {
-	Data struct {
-		ID             string `json:"id"`
-		OrganisationID string `json:"organisation_id"`
-		Type           string `json:"type"`
-		Attributes     struct {
-			Country               string `json:"country"`
-			BaseCurrency          string `json:"base_currency"`
-			BankID                string `json:"bank_id"`
-			BankIDCode            string `json:"bank_id_code"`
-			AccountNumber         string `json:"account_number"`
-			CustomerID            string `json:"customer_id"`
-			Iban                  string `json:"iban"`
-			Bic                   string `json:"bic"`
-			AccountClassification string `json:"account_classification"`
-		} `json:"attributes"`
-	} `json:"data"`
+	Data Data `json:"data"`
+}
+
+type Data struct {
+	ID             string     `json:"id"`
+	OrganisationID string     `json:"organisation_id"`
+	Type           string     `json:"type"`
+	Attributes     Attributes `json:"attributes"`
 }
 
 type ResponseData struct {
@@ -57,15 +49,11 @@ type ResponseData struct {
 		ID             string     `json:"id"`
 		OrganisationID string     `json:"organisation_id"`
 		Type           string     `json:"type"`
-		Attributes     Attributes `json:"attributes"`
+		Attributes     Attributes `json:"attributess"`
 		CreatedOn      time.Time  `json:"created_on"`
 		ModifiedOn     time.Time  `json:"modified_on"`
 		Version        int        `json:"version"`
 	} `json:"data"`
-}
-
-type Links struct {
-	Self string `json:"self"`
 }
 
 type ListLinks struct {
@@ -84,4 +72,8 @@ type Attributes struct {
 	Iban                  string `json:"iban"`
 	Bic                   string `json:"bic"`
 	AccountClassification string `json:"account_classification"`
+}
+
+type BodyError struct {
+	ErrorMessage string `json:"error_message"`
 }

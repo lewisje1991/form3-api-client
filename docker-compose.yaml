@@ -40,10 +40,11 @@ services:
   client:
     image: golang:1.15
     working_dir: /go/src/app
+    depends_on:
+      - postgresql
+      - vault
+      - accountapi
     volumes:
       - .:/go/src/app
-    command: ["go", "test", "./...", "-v"]
-    depends_on:
-      - accountapi
-      - postgresql
-      - vault    
+    command: ["go", "test", "./..."]
+  
