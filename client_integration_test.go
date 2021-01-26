@@ -27,19 +27,8 @@ func TestCreate(t *testing.T) {
 		assertNoError(t, err)
 
 		want := respData.(*Account)
-		want.Data.ID = got.Data.ID
-		want.Links.Self = fmt.Sprintf("%s/%s", "/v1/organisation/accounts/", got.Data.ID)
 
-		// Set times to match so that we can deep compare... is there a better way?
-		now := time.Now()
-		got.Data.CreatedOn = now
-		got.Data.ModifiedOn = now
-		want.Data.ModifiedOn = now
-		want.Data.CreatedOn = now
-
-		if reflect.DeepEqual(want, got) {
-			t.Fatalf("wanted %+v, but got %+v", got, want)
-		}
+		compareAccountModels(t, got, want)
 
 		cleanUpAccounts(t, []string{got.Data.ID}, client)
 	})
@@ -60,14 +49,18 @@ func TestFetch(t *testing.T) {
 	client, err := NewClient(ENDPOINT)
 	assertNoError(t, err)
 
-	t.Run("When account exists, returns account model", func(t *testing.T) {
+	t.Run("When account existsaaaaa, returns account model", func(t *testing.T) {
 		account := createAccount(t, client)
 
-		want, err := client.Accounts.Fetch(account.Data.ID)
+		got, err := client.Accounts.Fetch(account.Data.ID)
 		assertNoError(t, err)
 
-		fmt.Println(want)
-		// todo compare response model
+		respData, err := loadTestData("valid-create-response.json", &Account{})
+		assertNoError(t, err)
+
+		want := respData.(*Account)
+
+		compareAccountModels(t, got, want)
 
 		cleanUpAccounts(t, []string{account.Data.ID}, client)
 	})
@@ -115,20 +108,20 @@ func TestList(t *testing.T) {
 	}
 
 	t.Run("3 Per page, page 1 returns 3 items", func(t *testing.T) {
-		acc, err := client.Accounts.List(3, 0)
+		got, err := client.Accounts.List(3, 0)
 		assertNoError(t, err)
 
-		if len(acc.Data) != 3 {
-			t.Fatalf("wanted %d, but got %d", 3, len(acc.Data))
+		if len(got.Data) != 3 {
+			t.Fatalf("wanted %d, but got %d", 3, len(got.Data))
 		}
 	})
 
 	t.Run("3 Per page, page 2 returns 2 items ", func(t *testing.T) {
-		acc, err := client.Accounts.List(3, 1)
+		got, err := client.Accounts.List(3, 1)
 		assertNoError(t, err)
 
-		if len(acc.Data) != 2 {
-			t.Fatalf("wanted %d, but got %d", 2, len(acc.Data))
+		if len(got.Data) != 2 {
+			t.Fatalf("wanted %d, but got %d", 2, len(got.Data))
 		}
 	})
 
@@ -193,5 +186,21 @@ func assertErrorContains(t *testing.T, value string, err error) {
 	if !strings.Contains(err.Error(), value) {
 		t.Helper()
 		t.Fatalf("could not find occurance of %q in %q", value, err.Error())
+	}
+}
+
+func compareAccountModels(t *testing.T, got, want *Account) {
+	want.Data.ID = got.Data.ID
+	want.Links.Self = fmt.Sprintf("%s/%s", "/v1/organisation/accounts/", got.Data.ID)
+
+	// Set times to match so that we can deep compare... is there a better way?
+	now := time.Now()
+	got.Data.CreatedOn = now
+	got.Data.ModifiedOn = now
+	want.Data.ModifiedOn = now
+	want.Data.CreatedOn = now
+
+	if reflect.DeepEqual(want, got) {
+		t.Fatalf("wanted %+v, but got %+v", got, want)
 	}
 }

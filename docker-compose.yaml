@@ -46,5 +46,5 @@ services:
       - accountapi
     volumes:
       - .:/go/src/app
-    command: ["go", "test", "./...", "-cover"]
+    entrypoint: ["./entrypoint.sh"]
   
