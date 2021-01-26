@@ -1,4 +1,4 @@
-package client
+package form3
 
 import (
 	"bytes"
@@ -11,32 +11,29 @@ import (
 	"net/http"
 )
 
-type HTTPService struct {
+type httpService struct {
 	BaseURL string
 
 	http.Client
 }
 
-type APIError struct {
+type apiError struct {
 	StatusCode int
 	Message    string
 }
 
-type BodyError struct {
+type bodyError struct {
 	ErrorMessage string `json:"error_message"`
 }
 
-func (e *APIError) Error() string {
+func (e *apiError) Error() string {
 	return fmt.Sprintf("status code %d: error %v", e.StatusCode, e.Message)
 }
 
-func (h *HTTPService) BuildRequest(method string, resourceURL string, bodyData interface{}) (*http.Request, error) {
+func (h *httpService) buildRequest(method string, resourceURL string, bodyData interface{}) (*http.Request, error) {
 	var buf io.ReadWriter
 
 	if bodyData != nil {
-		log.Println(resourceURL)
-		log.Println("hwew")
-
 		bodyData, err := json.Marshal(bodyData)
 		if err != nil {
 			return nil, fmt.Errorf("error mashalling body: %w", err)
@@ -57,7 +54,7 @@ func (h *HTTPService) BuildRequest(method string, resourceURL string, bodyData i
 	return req, nil
 }
 
-func (h *HTTPService) Do(req *http.Request, respObj interface{}) error {
+func (h *httpService) do(req *http.Request, respObj interface{}) error {
 	res, err := h.Client.Do(req)
 	if err != nil {
 		return fmt.Errorf("error executing request: %w", err)
@@ -80,12 +77,16 @@ func (h *HTTPService) Do(req *http.Request, respObj interface{}) error {
 	return nil
 }
 
+func (h *httpService) buildURL(path string) string {
+	return fmt.Sprintf("%s%s", h.BaseURL, path)
+}
+
 func checkResponseForError(res *http.Response) error {
 	if c := res.StatusCode; http.StatusOK <= c && c < http.StatusMultipleChoices {
 		return nil
 	}
 
-	message := &BodyError{}
+	message := &bodyError{}
 
 	data, err := ioutil.ReadAll(res.Body)
 	if err == nil && data != nil {
@@ -95,12 +96,8 @@ func checkResponseForError(res *http.Response) error {
 		}
 	}
 
-	return &APIError{
+	return &apiError{
 		StatusCode: res.StatusCode,
 		Message:    message.ErrorMessage,
 	}
-}
-
-func (h *HTTPService) buildURL(path string) string {
-	return fmt.Sprintf("%s%s", h.BaseURL, path)
 }

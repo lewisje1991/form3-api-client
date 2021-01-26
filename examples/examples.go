@@ -1,26 +1,33 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 
 	"github.com/google/uuid"
-	client "github.com/lewisje1991/form3-api-client"
+	"github.com/lewisje1991/form3-api-client"
 )
 
 func main() {
-	c, err := client.NewClient("http://localhost:8080/v1")
+	c, err := form3.NewClient("http://localhost:8080/v1")
 	if err != nil {
 		log.Fatal("error creating client", err)
 	}
 
-	account, err := c.Accounts.Create(&client.AccountCreateRequest{
-		Data: client.Data{
+	account, err := c.Accounts.Create(&form3.AccountCreateRequest{
+		Data: form3.AccountCreateRequestData{
 			ID:             uuid.NewString(),
 			OrganisationID: uuid.NewString(),
 			Type:           "accounts",
-			Attributes: client.AccountAttributes{
+			Attributes: form3.AccountAttributes{
 				Country:               "GB",
 				AccountClassification: "Personal",
+				AccountNumber:         "10000004",
+				BankID:                "400302",
+				BankIDCode:            "GBDSC",
+				BaseCurrency:          "GBP",
+				CustomerID:            "234",
+				Iban:                  "GB28NWBK40030212764204",
 			},
 		},
 	})
@@ -29,6 +36,6 @@ func main() {
 		log.Fatal("error creating account", err)
 	}
 
-	log.Printf("Account %+v", account)
-
+	j, _ := json.Marshal(account)
+	log.Printf("Account %+v", string(j))
 }

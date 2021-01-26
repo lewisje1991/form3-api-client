@@ -1,4 +1,4 @@
-package client
+package form3
 
 import (
 	"encoding/json"
@@ -31,13 +31,11 @@ func TestCreate(t *testing.T) {
 		want.Links.Self = fmt.Sprintf("%s/%s", "/v1/organisation/accounts/", got.Data.ID)
 
 		// Set times to match so that we can deep compare... is there a better way?
-
 		now := time.Now()
 		got.Data.CreatedOn = now
-		want.Data.CreatedOn = now
-
 		got.Data.ModifiedOn = now
 		want.Data.ModifiedOn = now
+		want.Data.CreatedOn = now
 
 		if reflect.DeepEqual(want, got) {
 			t.Fatalf("wanted %+v, but got %+v", got, want)

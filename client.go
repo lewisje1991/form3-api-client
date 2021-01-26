@@ -1,4 +1,4 @@
-package client
+package form3
 
 import (
 	"errors"
@@ -13,12 +13,13 @@ var (
 	ErrBaseURLInvalid = errors.New("BaseURL is invalid")
 )
 
+// Client container for services to interact with form3 api's
 type Client struct {
-	Accounts *AccountService
+	Accounts *accountService
 }
 
+// NewClient returns a new instance of the API client for interacting with form3 api's
 func NewClient(baseURL string) (*Client, error) {
-
 	if baseURL == "" {
 		return nil, ErrBaseURLEmpty
 	}
@@ -27,12 +28,12 @@ func NewClient(baseURL string) (*Client, error) {
 		return nil, fmt.Errorf("baseURL %s: %w", baseURL, ErrBaseURLInvalid)
 	}
 
-	httpService := &HTTPService{
+	httpService := &httpService{
 		BaseURL: baseURL,
 	}
 
 	return &Client{
-		Accounts: &AccountService{
+		Accounts: &accountService{
 			httpService: httpService,
 			resourceURL: "/organisation/accounts",
 		},
